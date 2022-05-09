@@ -77,6 +77,7 @@ POSSIBLE_TASK_KEYS = ["notebook_task", "spark_jar_task", "spark_python_task", "s
     type=str,
     help="""Parameters of the job. \n
             If provided, default job arguments will be overridden.
+            In case of multi-task job, arguments on each task will be overridden.
             Format: (:code:`--parameters="parameter1=value1"`).
             Option might be repeated multiple times.""",
 )
@@ -85,6 +86,7 @@ POSSIBLE_TASK_KEYS = ["notebook_task", "spark_jar_task", "spark_python_task", "s
     type=str,
     help="""Parameters of the job as a raw string. \n
             If provided, default job arguments will be overridden.
+            In case of multi-task job, arguments on each task will be overridden.
             If provided, :code:`--parameters` argument will be ignored.
             Example command:
             :code:`dbx launch --job="my-job-name" --parameters-raw='{"key1": "value1", "key2": 2}'`.
@@ -294,8 +296,13 @@ class RunSubmitLauncher:
         job_spec: Dict[str, Any] = found_jobs[0]
 
         if self.prepared_parameters:
-            task_key = [k for k in job_spec.keys() if k in POSSIBLE_TASK_KEYS][0]
-            job_spec[task_key]["parameters"] = self.prepared_parameters
+            if "tasks" in job_spec:
+                for task in job_spec["tasks"]:
+                    task_key = [k for k in task.keys() if k in POSSIBLE_TASK_KEYS][0]
+                    task[task_key]["parameters"] = self.prepared_parameters
+            else:
+                task_key = [k for k in job_spec.keys() if k in POSSIBLE_TASK_KEYS][0]
+                job_spec[task_key]["parameters"] = self.prepared_parameters
 
         run_data = _submit_run(self.api_client, job_spec)
         return run_data, None
@@ -319,7 +326,14 @@ class RunNowLauncher:
         if not job_data:
             raise Exception(f"Job with name {self.job} not found")
 
+
         job_id = job_data["job_id"]
+
+        is_multi_task = job_data.get("settings", {}).get("format") == "MULTI_TASK"
+
+        if is_multi_task:
+            # fetch full job with task definition
+            job_data = jobs_service.get_job(job_id)
 
         active_runs = jobs_service.list_runs(job_id, active_only=True).get("runs", [])
 
@@ -362,6 +376,8 @@ def _define_payload_key(job_settings: Dict[str, Any]):
         extra_payload_key = "python_params"
     elif job_settings.get("spark_submit_task"):
         extra_payload_key = "spark_submit_params"
+    elif job_settings.get("format") == "MULTI_TASK":
+        extra_payload_key = _define_payload_key(job_settings["tasks"][0])
     else:
         raise Exception(f"Unexpected type of the job with settings: {job_settings}")
 
