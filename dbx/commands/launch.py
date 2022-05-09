@@ -304,9 +304,21 @@ class RunSubmitLauncher:
                 task_key = [k for k in job_spec.keys() if k in POSSIBLE_TASK_KEYS][0]
                 job_spec[task_key]["parameters"] = self.prepared_parameters
 
-        run_data = _submit_run(self.api_client, job_spec)
-        return run_data, None
+        current_branch = get_current_branch_name()
+        default_branch_name = "Unknown"
+        job_name = job_spec.get("name")
+        if current_branch:
+            dbx_echo(f"Setting job run name: {current_branch}")
+            job_spec["run_name"] = job_name + str(current_branch)
+        else:
+            job_spec["run_name"] = job_name + default_branch_name
 
+        #set Permissions for run id
+        permissions_for_run = job_spec.get("permissions")
+
+        run_data = _submit_run(self.api_client, job_spec)
+        _set_permission(self.api_client, run_id=run_data["run_id"], permissions=permissions_for_run)
+        return run_data, None
 
 class RunNowLauncher:
     def __init__(
@@ -387,6 +399,12 @@ def _define_payload_key(job_settings: Dict[str, Any]):
 def _submit_run(api_client: ApiClient, payload: Dict[str, Any]) -> Dict[str, Any]:
     return api_client.perform_query("POST", "/jobs/runs/submit", data=payload)
 
+def _set_permission(api_client: ApiClient, run_id:int, permissions:Dict):
+    if permissions:
+        jobs_service = JobsService(api_client)
+        job_id = jobs_service.get_run(run_id).get("job_id")
+        api_client.perform_query("PUT", f"/permissions/jobs/{job_id}", data=permissions)
+        dbx_echo("Set Permissions to job id: {job_id}")
 
 def _cancel_run(api_client: ApiClient, run_data: Dict[str, Any]):
     jobs_service = JobsService(api_client)
