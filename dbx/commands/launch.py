@@ -309,7 +309,7 @@ class RunSubmitLauncher:
         job_name = job_spec.get("name")
         if current_branch:
             dbx_echo(f"Setting job run name: {current_branch}")
-            job_spec["run_name"] = job_name + str(current_branch)
+            job_spec["run_name"] = job_name + str(curregnt_branch)
         else:
             job_spec["run_name"] = job_name + default_branch_name
 
@@ -317,7 +317,7 @@ class RunSubmitLauncher:
         permissions_for_run = job_spec.get("permissions")
 
         run_data = _submit_run(self.api_client, job_spec)
-        _set_permission(self.api_client, run_id=run_data["run_id"], permissions=permissions_for_run)
+        _set_permissions(self.api_client, run_id=run_data["run_id"], permissions=permissions_for_run)
         return run_data, None
 
 class RunNowLauncher:
@@ -399,7 +399,7 @@ def _define_payload_key(job_settings: Dict[str, Any]):
 def _submit_run(api_client: ApiClient, payload: Dict[str, Any]) -> Dict[str, Any]:
     return api_client.perform_query("POST", "/jobs/runs/submit", data=payload)
 
-def _set_permission(api_client: ApiClient, run_id:int, permissions:Dict):
+def _set_permissions(api_client: ApiClient, run_id:int, permissions:Dict):
     if permissions:
         jobs_service = JobsService(api_client)
         job_id = jobs_service.get_run(run_id).get("job_id")
