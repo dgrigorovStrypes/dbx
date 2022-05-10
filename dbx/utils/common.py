@@ -284,6 +284,8 @@ def get_current_branch_name() -> Optional[str]:
     if "GITHUB_REF" in os.environ:
         ref = os.environ["GITHUB_REF"].split("/")
         return ref[-1]
+    elif "CI_COMMIT_BRANCH" in os.environ:
+        return os.environ["CI_COMMIT_BRANCH"]
     else:
         try:
             repo = git.Repo(".", search_parent_directories=True)
