@@ -309,7 +309,7 @@ class RunSubmitLauncher:
         job_name = job_spec.get("name")
         if current_branch:
             dbx_echo(f"Setting job run name: {current_branch}")
-            job_spec["run_name"] = job_name + str(curregnt_branch)
+            job_spec["run_name"] = job_name + str(current_branch)
         else:
             job_spec["run_name"] = job_name + default_branch_name
 
