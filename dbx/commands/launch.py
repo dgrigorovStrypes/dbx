@@ -13,15 +13,16 @@ from databricks_cli.jobs.api import JobsService
 from databricks_cli.sdk.api_client import ApiClient
 from databricks_cli.utils import CONTEXT_SETTINGS
 
+from dbx.api.configure import ConfigurationManager
 from dbx.utils.common import (
-    dbx_echo,
     generate_filter_string,
     prepare_environment,
-    environment_option,
     parse_multiple,
-    InfoFile,
     get_current_branch_name,
 )
+from dbx.utils import dbx_echo
+from dbx.utils.options import environment_option
+from dbx.utils.job_listing import find_job_by_name
 
 TERMINAL_RUN_LIFECYCLE_STATES = ["TERMINATED", "SKIPPED", "INTERNAL_ERROR"]
 POSSIBLE_TASK_KEYS = ["notebook_task", "spark_jar_task", "spark_python_task", "spark_submit_task"]
@@ -240,7 +241,7 @@ def _find_deployment_run(
             With file-based deployments (dbx_deployment_type='files_only')."""
             )
 
-        experiment_location = InfoFile.get("environments").get(environment).get("workspace_dir")
+        experiment_location = ConfigurationManager().get(environment).workspace_dir
         exception_string = (
             exception_string
             + f"""
@@ -313,18 +314,11 @@ class RunNowLauncher:
     def launch(self) -> Tuple[Dict[Any, Any], Optional[str]]:
         dbx_echo("Launching job via run now API")
         jobs_service = JobsService(self.api_client)
+        job_data = find_job_by_name(jobs_service, self.job)
 
-        all_jobs = jobs_service.list_jobs().get("jobs", [])
-
-        matching_jobs = [j for j in all_jobs if j["settings"]["name"] == self.job]
-
-        if not matching_jobs:
+        if not job_data:
             raise Exception(f"Job with name {self.job} not found")
 
-        if len(matching_jobs) > 1:
-            raise Exception(f"Job with name {self.job} is duplicated. Please make job name unique.")
-
-        job_data = matching_jobs[0]
         job_id = job_data["job_id"]
 
         active_runs = jobs_service.list_runs(job_id, active_only=True).get("runs", [])

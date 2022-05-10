@@ -1,16 +1,13 @@
-from pathlib import Path
+from typing import Optional
 
 import click
 from databricks_cli.configure.config import debug_option
+from databricks_cli.configure.provider import DEFAULT_SECTION
 from databricks_cli.utils import CONTEXT_SETTINGS
 
-from dbx.utils.common import (
-    InfoFile,
-    dbx_echo,
-    INFO_FILE_PATH,
-    environment_option,
-    profile_option,
-)
+from dbx.api.configure import ConfigurationManager, EnvironmentInfo
+from dbx.utils import dbx_echo
+from dbx.utils.options import environment_option, profile_option
 
 
 @click.command(
@@ -18,7 +15,7 @@ from dbx.utils.common import (
     short_help="Configures project environment in the current folder.",
     help="""
     Configures project environment in the current folder.
-    
+
     This command might be used multiple times to change configuration of a given environment.
     If project file (located in :code:`.dbx/project.json`) is non-existent, it will be initialized.
     There is no strict requirement to configure project file via this command.
@@ -44,33 +41,13 @@ from dbx.utils.common import (
 @environment_option
 @debug_option
 @profile_option
-def configure(environment: str, workspace_dir: str, artifact_location: str, profile: str):
-    dbx_echo("Configuring new environment with name %s" % environment)
-
-    if not workspace_dir:
-        workspace_dir = f'/Shared/dbx/projects/{Path(".").absolute().name}'
-        dbx_echo(f"Workspace directory argument is not provided, using the following directory: {workspace_dir}")
-
-    if not Path(INFO_FILE_PATH).exists():
-        InfoFile.initialize()
-
-    if InfoFile.get("environments").get(environment):
-        dbx_echo(f"Environment {environment} will be overridden with new properties")
-
-    if not artifact_location:
-        artifact_location = f'dbfs:/dbx/{Path(".").absolute().name}'
-
-    environment_info = {
-        environment: {
-            "profile": profile,
-            "workspace_dir": workspace_dir,
-            "artifact_location": artifact_location,
-        }
-    }
-
-    environments = InfoFile.get("environments")
-
-    environments.update(environment_info)
-
-    InfoFile.update({"environments": environments})
+def configure(
+    environment: str,
+    workspace_dir: Optional[str] = None,
+    artifact_location: Optional[str] = None,
+    profile: Optional[str] = DEFAULT_SECTION,
+):
+    dbx_echo(f"Configuring new environment with name {environment}")
+    manager = ConfigurationManager()
+    manager.create_or_update(environment, EnvironmentInfo(profile, workspace_dir, artifact_location))
     dbx_echo("Environment configuration successfully finished")

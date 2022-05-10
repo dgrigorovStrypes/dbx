@@ -22,7 +22,10 @@ from databricks_cli.configure.config import debug_option
 from databricks_cli.configure.provider import DatabricksConfig
 from databricks_cli.utils import CONTEXT_SETTINGS
 
-from dbx.utils.common import dbx_echo, read_json, environment_option, get_environment_data, pick_config
+from dbx.utils import dbx_echo
+from dbx.utils.common import get_environment_data, pick_config
+from dbx.utils.json import JsonUtils
+from dbx.utils.options import environment_option
 
 
 def filter_environment_credential_warning(record):
@@ -85,7 +88,10 @@ class DatafactoryReflector:
         self.factory_name = factory_name
         self.name = name
         self.environment = environment
-        self.credential = DefaultAzureCredential(exclude_visual_studio_code_credential=True)
+
+        self.credential = DefaultAzureCredential(
+            exclude_shared_token_cache_credential=True, exclude_visual_studio_code_credential=True
+        )
 
         self.sub_client = SubscriptionClient(self.credential)
         self.subscription_id = self._get_subscription_id(subscription_name)
@@ -98,15 +104,16 @@ class DatafactoryReflector:
 
     def _get_config(self) -> DatabricksConfig:
         environment_data = get_environment_data(self.environment)
-        _, config = pick_config(environment_data)
+        _, config = pick_config(environment_data.profile)
         return config
 
     @staticmethod
     def _read_specs(specs_file, environment: str) -> List[Dict[str, Any]]:
-        if not Path(specs_file).exists():
+        specs_file = Path(specs_file)
+        if not specs_file.exists():
             raise FileNotFoundError(f"Specs file {specs_file} not found")
 
-        specs = read_json(specs_file).get(environment)
+        specs = JsonUtils.read(specs_file).get(environment)
 
         if not specs:
             raise Exception(f"Environment {environment} not found in specs file {specs_file}")
@@ -227,7 +234,17 @@ class DatafactoryReflector:
             if name not in intersected:
                 final_activity_list.append(activity)
 
-        resource = PipelineResource(activities=final_activity_list)
+        resource = PipelineResource(
+            activities=final_activity_list,
+            description=current_pipeline.description,
+            parameters=current_pipeline.parameters,
+            variables=current_pipeline.variables,
+            concurrency=current_pipeline.concurrency,
+            annotations=current_pipeline.annotations,
+            run_dimensions=current_pipeline.run_dimensions,
+            folder=current_pipeline.folder,
+            policy=current_pipeline.policy,
+        )
 
         self.adf_client.pipelines.create_or_update(self.resource_group, self.factory_name, self.name, resource)
         dbx_echo(f"Updating pipeline {self.name} - done")

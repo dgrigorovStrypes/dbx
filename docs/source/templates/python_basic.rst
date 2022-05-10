@@ -191,7 +191,7 @@ Use this command to execute a specific job on interactive cluster:
 
 .. code-block::
 
-    dbx execute --deployment-file=conf/deployment.yml --job=<job-name> --cluster-name=<cluster-name>
+    dbx execute --job=<job-name> --cluster-name=<cluster-name>
 
 Now, if you would like to launch your job on an automated cluster, you probably would like to configure some specific cluster properties, such as size, environment etc.
 To do this, please take a look at the :code:`conf/deployment.yml` file. In general, this file follows the Databricks API structures, but it has some additional features, described through this documentation.
@@ -201,7 +201,7 @@ Instead of this, we're going to perform something called jobless deployment, by 
 
 .. code-block::
 
-    dbx deploy --deployment-file=conf/deployment.yml --jobs=<job-name> --files-only
+    dbx deploy --jobs=<job-name> --files-only
 
 Now the job can be launched in a run submit mode:
 
@@ -235,6 +235,11 @@ Depending on your CI tool, please choose the instruction accordingly:
             * Push the code
             * Open the GitHub Actions for your project to verify the state of the deployment pipeline
 
+        .. warning::
+
+            There is no need to manually create the releases via UI in case of the release.
+            Release pipeline will create the release automatically.
+
     .. tab:: Azure DevOps
 
         Please do the following:
@@ -252,7 +257,6 @@ Depending on your CI tool, please choose the instruction accordingly:
             * Add a remote origin to the local repo
             * Push the code
             * Open the GitLab CI/CD UI to check the deployment status
-
 
 Please note that to create a release and deploy the job in a normal mode, tag the latest commit in the main branch and push the tags:
 
