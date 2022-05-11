@@ -309,9 +309,9 @@ class RunSubmitLauncher:
         job_name = job_spec.get("name")
         if current_branch:
             dbx_echo(f"Setting job run name: {current_branch}")
-            job_spec["run_name"] = job_name + str(current_branch)
+            job_spec["run_name"] = f"{job_name} - {current_branch}"
         else:
-            job_spec["run_name"] = job_name + default_branch_name
+            job_spec["run_name"] = f"{job_name} - {default_branch_name}"
 
         #set Permissions for run id
         permissions_for_run = job_spec.get("permissions")
@@ -404,7 +404,7 @@ def _set_permissions(api_client: ApiClient, run_id:int, permissions:Dict):
         jobs_service = JobsService(api_client)
         job_id = jobs_service.get_run(run_id).get("job_id")
         api_client.perform_query("PUT", f"/permissions/jobs/{job_id}", data=permissions)
-        dbx_echo("Set Permissions to job id: {job_id}")
+        dbx_echo(f"Set Permissions to job id: {job_id}")
 
 def _cancel_run(api_client: ApiClient, run_data: Dict[str, Any]):
     jobs_service = JobsService(api_client)
