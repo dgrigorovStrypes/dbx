@@ -79,6 +79,7 @@ POSSIBLE_TASK_KEYS = ["notebook_task", "spark_jar_task", "spark_python_task", "s
     type=str,
     help="""Parameters of the job. \n
             If provided, default job arguments will be overridden.
+            In case of multi-task job, arguments on each task will be overridden.
             Format: (:code:`--parameters="parameter1=value1"`).
             Option might be repeated multiple times.""",
 )
@@ -87,6 +88,7 @@ POSSIBLE_TASK_KEYS = ["notebook_task", "spark_jar_task", "spark_python_task", "s
     type=str,
     help="""Parameters of the job as a raw string. \n
             If provided, default job arguments will be overridden.
+            In case of multi-task job, arguments on each task will be overridden.
             If provided, :code:`--parameters` argument will be ignored.
             Example command:
             :code:`dbx launch --job="my-job-name" --parameters-raw='{"key1": "value1", "key2": 2}'`.
@@ -325,12 +327,29 @@ class RunSubmitLauncher:
         job_spec: Dict[str, Any] = found_jobs[0]
 
         if self.prepared_parameters:
-            task_key = [k for k in job_spec.keys() if k in POSSIBLE_TASK_KEYS][0]
-            job_spec[task_key]["parameters"] = self.prepared_parameters
+            if "tasks" in job_spec:
+                for task in job_spec["tasks"]:
+                    task_key = [k for k in task.keys() if k in POSSIBLE_TASK_KEYS][0]
+                    task[task_key]["parameters"] = self.prepared_parameters
+            else:
+                task_key = [k for k in job_spec.keys() if k in POSSIBLE_TASK_KEYS][0]
+                job_spec[task_key]["parameters"] = self.prepared_parameters
+
+        current_branch = get_current_branch_name()
+        default_branch_name = "Unknown"
+        job_name = job_spec.get("name")
+        if current_branch:
+            dbx_echo(f"Setting job run name: {current_branch}")
+            job_spec["run_name"] = f"{job_name} - {current_branch}"
+        else:
+            job_spec["run_name"] = f"{job_name} - {default_branch_name}"
+
+        #set Permissions for run id
+        permissions_for_run = job_spec.get("permissions")
 
         run_data = _submit_run(self.api_client, job_spec)
+        _set_permissions(self.api_client, run_id=run_data["run_id"], permissions=permissions_for_run)
         return run_data, None
-
 
 class RunNowLauncher:
     def __init__(self, job: str, api_client: ApiClient, existing_runs: str, prepared_parameters: Any):
@@ -347,7 +366,14 @@ class RunNowLauncher:
         if not job_data:
             raise Exception(f"Job with name {self.job} not found")
 
+
         job_id = job_data["job_id"]
+
+        is_multi_task = job_data.get("settings", {}).get("format") == "MULTI_TASK"
+
+        if is_multi_task:
+            # fetch full job with task definition
+            job_data = jobs_service.get_job(job_id)
 
         active_runs = jobs_service.list_runs(job_id, active_only=True).get("runs", [])
 
@@ -390,6 +416,8 @@ def _define_payload_key(job_settings: Dict[str, Any]):
         extra_payload_key = "python_params"
     elif job_settings.get("spark_submit_task"):
         extra_payload_key = "spark_submit_params"
+    elif job_settings.get("format") == "MULTI_TASK":
+        extra_payload_key = _define_payload_key(job_settings["tasks"][0])
     else:
         raise Exception(f"Unexpected type of the job with settings: {job_settings}")
 
@@ -399,6 +427,12 @@ def _define_payload_key(job_settings: Dict[str, Any]):
 def _submit_run(api_client: ApiClient, payload: Dict[str, Any]) -> Dict[str, Any]:
     return api_client.perform_query("POST", "/jobs/runs/submit", data=payload)
 
+def _set_permissions(api_client: ApiClient, run_id:int, permissions:Dict):
+    if permissions:
+        jobs_service = JobsService(api_client)
+        job_id = jobs_service.get_run(run_id).get("job_id")
+        api_client.perform_query("PUT", f"/permissions/jobs/{job_id}", data=permissions)
+        dbx_echo(f"Set Permissions to job id: {job_id}")
 
 def _cancel_run(api_client: ApiClient, run_data: Dict[str, Any]):
     jobs_service = JobsService(api_client)
