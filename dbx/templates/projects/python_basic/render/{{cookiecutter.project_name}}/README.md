@@ -14,13 +14,12 @@ conda activate {{cookiecutter.project_slug}}
 
 2. If you don't have JDK installed on your local machine, install it (in this example we use `conda`-based installation):
 ```bash
-conda install -c anaconda "openjdk=8.0.152"
+conda install -c conda-forge openjdk
 ```
 
-3. Install unit requirements for local development and the project package in a developer mode:
+3. Install project in a dev mode (this will also install dev requirements):
 ```bash
-pip install -r unit-requirements.txt
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ## Running unit tests
@@ -45,6 +44,14 @@ For quicker startup of the job clusters we recommend using instance pools ([AWS]
 For an integration test on interactive cluster, use the following command:
 ```
 dbx execute --cluster-name=<name of interactive cluster> --job=<name of the job to test>
+```
+
+To execute a task inside multitask job, use the following command:
+```
+dbx execute \
+    --cluster-name=<name of interactive cluster> \
+    --job=<name of the job to test> \
+    --task=<task-key-from-job-definition>
 ```
 
 For a test on an automated job cluster, deploy the job files and then launch:

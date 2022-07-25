@@ -22,6 +22,7 @@ class FileInfoFixture:
     """
     This class mocks the DBUtils FileInfo object
     """
+
     path: str
     name: str
     size: int
@@ -43,10 +44,7 @@ class DBUtilsFixture:
     def ls(self, path: str):
         _paths = Path(path).glob("*")
         _objects = [
-            FileInfoFixture(
-                str(p.absolute()), p.name, p.stat().st_size, int(p.stat().st_mtime)
-            )
-            for p in _paths
+            FileInfoFixture(str(p.absolute()), p.name, p.stat().st_size, int(p.stat().st_mtime)) for p in _paths
         ]
         return _objects
 
@@ -81,9 +79,9 @@ def spark() -> SparkSession:
     warehouse_dir = tempfile.TemporaryDirectory().name
     _builder = (
         SparkSession.builder.master("local[1]")
-            .config("spark.hive.metastore.warehouse.dir", warehouse_dir)
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config(
+        .config("spark.hive.metastore.warehouse.dir", Path(warehouse_dir).as_uri())
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config(
             "spark.sql.catalog.spark_catalog",
             "org.apache.spark.sql.delta.catalog.DeltaCatalog",
         )
@@ -110,7 +108,7 @@ def mlflow_local():
     tracking_uri = tempfile.TemporaryDirectory().name
     registry_uri = f"sqlite:///{tempfile.TemporaryDirectory().name}"
 
-    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_tracking_uri(Path(tracking_uri).as_uri())
     mlflow.set_registry_uri(registry_uri)
     logging.info("MLflow instance configured")
     yield None

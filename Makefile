@@ -12,7 +12,7 @@ SHELL=/bin/bash
 
 
 ##############################################################################
-PYTHON_VERSION=3.7.5
+PYTHON_VERSION=3.8.13
 VENV_NAME=.venv
 VENV_DIR=${VENV_NAME}
 PYTHON=${VENV_DIR}/bin/python
@@ -148,7 +148,8 @@ install-dev: ## Install dev dependencies.
 	@echo ""
 	@echo "${YELLOW}Install Dev dependencies.${NORMAL}"
 	@make helper-line
-	$(PYTHON) -m pip install -r dev-requirements.txt
+	$(PYTHON) -m pip install -e ".[dev]"
+	pre-commit install
 
 post-install-info: ## Just some post installation info.
 	@echo ""

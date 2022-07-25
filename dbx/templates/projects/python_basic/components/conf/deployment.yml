@@ -13,7 +13,6 @@ custom:
 # please note that we're using FUSE reference for config file, hence we're going to load this file using its local FS path
 environments:
   default:
-    strict_path_adjustment_policy: true
     jobs:
       ##################################################################
       # this is an example job with single ETL task based on 2.0 API  #
@@ -21,7 +20,7 @@ environments:
       - name: "{{project_name}}-sample-etl-2.0"
         <<: *basic-static-cluster
         spark_python_task:
-          python_file: "file://{{project_slug}}/workloads/sample_etl_job.py"
+          python_file: "file://{{project_slug}}/tasks/sample_etl_task.py"
           parameters: ["--conf-file", "file:fuse://conf/test/sample_etl_config.yml"]
       #######################################################################################
       # this is an example job with single ETL task based on 2.1 API and wheel_task format #
@@ -61,9 +60,8 @@ environments:
         tasks:
           - task_key: "etl"
             job_cluster_key: "default"
-            python_wheel_task:
-              package_name: "{{project_slug}}"
-              entry_point: "etl"
+            spark_python_task:
+              python_file: "file://{{project_slug}}/tasks/sample_etl_task.py"
               parameters: [ "--conf-file", "file:fuse://conf/test/sample_etl_config.yml" ]
           - task_key: "ml"
             depends_on:
